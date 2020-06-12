@@ -1,0 +1,36 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or this file's README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.112.0/containers/azure-cli
+{
+	"name": "Azure CLI",
+	"dockerFile": "Dockerfile",
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.shell.linux": "/bin/pwsh"
+	},
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"ms-vscode.powershell",
+		"ms-vscode.azurecli",
+		"ms-kubernetes-tools.vscode-kubernetes-tools",
+		"knisterpeter.vscode-github",
+	],
+	"mounts": [
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		// Docker doesn't seem to support absolute paths with : and \ in Windows.
+		// "source=${localWorkspaceFolder}/mounts/ssh,target=/root/.ssh,type=bind,consistency=cached",
+		// To persist SSH credentials to connect to the Kubernetes Cluster.
+		"source=${localWorkspaceFolder}/mounts/ssh,target=/root/.ssh,type=bind,consistency=cached",
+		// To persist the credentials and configuration of Kubectl.
+		"source=${localWorkspaceFolder}/mounts/kube,target=/root/.kube,type=bind,consistency=cached"
+	],
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [
+		8084
+	],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "az --version",
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+	// Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+	// "remoteUser": "vscode"
+}
