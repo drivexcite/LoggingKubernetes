@@ -14,6 +14,21 @@ spec:
   selector:
     app: elasticsearch
 ---
+# Elastic Persistent Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elastic-storage-pvc
+  namespace: logging
+spec:
+  storageClassName: managed-premium
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
 # Elasticsearch Deployment
 apiVersion: apps/v1
 kind: Deployment
@@ -33,29 +48,59 @@ spec:
         app: elasticsearch
     spec:
       containers:
-        - image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.1.1
-          name: elasticsearch
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.2.0
           resources:
-            # need more cpu upon initialization, therefore burstable class
             limits:
               cpu: 1000m
             requests:
               cpu: 100m
-          env:
-            - name: discovery.type
-              value: single-node
           ports:
             - containerPort: 9200
-              name: db
+              name: rest
               protocol: TCP
             - containerPort: 9300
-              name: transport
+              name: inter-node
               protocol: TCP
           volumeMounts:
-            - name: elasticsearch
-              mountPath: /data
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+          env:
+            - name: cluster.name
+              value: k8s-logs
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: discovery.seed_hosts
+              value: "es-cluster-0.elasticsearch,es-cluster-1.elasticsearch,es-cluster-2.elasticsearch"
+            - name: cluster.initial_master_nodes
+              value: "es-cluster-0,es-cluster-1,es-cluster-2"
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          command:
+            ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+        - name: increase-vm-max-map
+          image: busybox
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+        - name: increase-fd-ulimit
+          image: busybox
+          command: ["sh", "-c", "ulimit -n 65536"]
+          securityContext:
+            privileged: true
       volumes:
-        - name: elasticsearch
-          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: elastic-storage-pvc
 ---
 

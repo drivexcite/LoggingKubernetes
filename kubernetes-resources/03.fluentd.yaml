@@ -65,7 +65,7 @@ spec:
           image: fluent/fluentd-kubernetes-daemonset:elasticsearch
           env:
             - name: FLUENT_ELASTICSEARCH_SCHEME
-             value: "https"
+              value: "https"
             - name: FLUENT_UID
               value: "0"
             - name: FLUENTD_ARGS
