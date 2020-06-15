@@ -34,16 +34,25 @@ spec:
     spec:
       containers:
         - name: kibana
-          image: docker.elastic.co/kibana/kibana:7.7.1
+          image: docker.elastic.co/kibana/kibana:7.7.0
           resources:
-            # need more cpu upon initialization, therefore burstable class
             limits:
               cpu: 1000m
             requests:
               cpu: 100m
           env:
-            - name: ELASTICSEARCH_URL
+            - name: ELASTICSEARCH_HOSTS
               value: http://elasticsearch:9200
+            - name: XPACK_SECURITY_ENABLED
+              value: "true"
+            - name: XPACK_GRAPH_ENABLED
+              value: "false"
+            - name: XPACK_ML_ENABLED
+              value: "false"
+            - name: XPACK_REPORTING_ENABLED
+              value: "false"
+            - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+              value: "something_at_least_32_characters"
           ports:
             - containerPort: 5601
               name: ui

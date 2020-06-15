@@ -1,18 +1,20 @@
 # Elasticsearch Service
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: elasticsearch
   namespace: logging
   labels:
     app: elasticsearch
 spec:
-  ports:
-    - port: 9200
-      protocol: TCP
-      targetPort: db
   selector:
     app: elasticsearch
+  clusterIP: None
+  ports:
+    - port: 9200
+      name: rest
+    - port: 9300
+      name: inter-node
 ---
 # Elastic Persistent Storage
 apiVersion: v1
@@ -28,6 +30,25 @@ spec:
     requests:
       storage: 5Gi
 
+---
+#Elastic search ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: es-config
+  namespace: logging
+data:
+  elasticsearch.yml: |
+    http.host: 0.0.0.0
+    network.bind_host: 0.0.0.0
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    discovery.seed_hosts: "elasticsearch"
+    xpack.license.self_generated.type: trial
+    xpack.security.enabled: true
+    xpack.monitoring.collection.enabled: true
+  # cluster.initial_master_nodes: "elasticsearch"
+  ES_JAVA_OPTS: -Xms512m -Xmx512m
 ---
 # Elasticsearch Deployment
 apiVersion: apps/v1
@@ -49,7 +70,7 @@ spec:
     spec:
       containers:
         - name: elasticsearch
-          image: docker.elastic.co/elasticsearch/elasticsearch:7.2.0
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
           resources:
             limits:
               cpu: 1000m
@@ -65,6 +86,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /usr/share/elasticsearch/data
+            - name: config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
           env:
             - name: cluster.name
               value: k8s-logs
@@ -72,12 +96,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: discovery.seed_hosts
-              value: "es-cluster-0.elasticsearch,es-cluster-1.elasticsearch,es-cluster-2.elasticsearch"
-            - name: cluster.initial_master_nodes
-              value: "es-cluster-0,es-cluster-1,es-cluster-2"
-            - name: ES_JAVA_OPTS
-              value: "-Xms512m -Xmx512m"
       initContainers:
         - name: fix-permissions
           image: busybox
@@ -99,6 +117,12 @@ spec:
           securityContext:
             privileged: true
       volumes:
+        - name: config
+          configMap:
+            name: es-config
+            items:
+              - key: elasticsearch.yml
+                path: elasticsearch.yml
         - name: data
           persistentVolumeClaim:
             claimName: elastic-storage-pvc
