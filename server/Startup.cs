@@ -10,8 +10,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Events;
 
 namespace FlashyService
 {
@@ -39,9 +37,7 @@ namespace FlashyService
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseSerilogRequestLogging(options => { options.GetLevel = (context, d, arg3) => LogEventLevel.Debug; });
-
-            app.UseHttpsRedirection();
+           app.UseHttpsRedirection();
 
             app.UseRouting();
 

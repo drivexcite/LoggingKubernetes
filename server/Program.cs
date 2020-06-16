@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Serilog.Formatting.Elasticsearch;
 
 namespace FlashyService
 {
@@ -14,20 +13,14 @@ namespace FlashyService
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .UseSerilog((ctx, config) =>
+                .UseSerilog((context, config) =>
                 {
                     config
                         .MinimumLevel.Information()
-                        .Enrich.FromLogContext();
+                        .Enrich
+                        .FromLogContext();
 
-                    if (ctx.HostingEnvironment.IsDevelopment())
-                    {
-                        config.WriteTo.Console();
-                    }
-                    else
-                    {
-                        config.WriteTo.Console(new ElasticsearchJsonFormatter());
-                    }
+                    config.WriteTo.Console();
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {

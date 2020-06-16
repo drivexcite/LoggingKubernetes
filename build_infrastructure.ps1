@@ -41,5 +41,5 @@ az aks update --name $clusterName --resource-group $resourceGroup --attach-acr $
 $loggingServer = az acr show --name $acrName --resource-group $resourceGroup --query loginServer
 
 # From the server source code directory, build the image in ACR.
-az acr build --resource-group $resourceGroup --registry $acrName --image server:v1 .
+az acr build --resource-group $resourceGroup --registry $acrName --image server:v1.1 .
 
