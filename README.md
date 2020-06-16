@@ -83,6 +83,10 @@ The Client node or Ingest is an Elastic Search dedicated load balancer that forw
       ingest: true
 ```
 
+## Installing Elastic Search
+```powershell
+kubectl apply -f ./01.namespace.yaml -f ./02.elasticsearch-master.yaml -f ./03.elasticsearch-data.yaml -f ./04.elasticsearch-client.yaml
+```
 
 ## Generating master passwords
 After installing all the Elastic Search resources, but before installing the Kibana UI, it is necessary to autogenerate passwords to connect to Elastic from Kiabana, using Basic Authentication. The following script, will select the client pod, invoke the `elasticsearch-setup-passwords` command and retrieve the list of generated userIds and passwords to a variable. Then we take the kibana password and set it up as a Kubernetes Secret in the same namespace as the other components.
@@ -157,6 +161,11 @@ env:
         secretKeyRef:
             name: elastic-password
             key: password
+```
+
+## Installing Kibana and Fluentd
+```powershell
+kubectl apply -f ./05.kibana.yaml -f ./06.fluentd.yaml
 ```
 
 ## Serilog
@@ -300,7 +309,6 @@ spec:
               name: webinterface
 ---
 ```
-
 
 ### Other resources:
     https://blog.insightdatascience.com/anatomy-of-an-elasticsearch-cluster-part-i-7ac9a13b05db

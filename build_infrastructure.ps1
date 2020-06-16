@@ -1,6 +1,6 @@
-$resourceGroup = 'HwLoggingGroup'
-$clusterName = 'HwLoggingCluster'
-$acrName = 'HwLoggingRegistry'
+$resourceGroup = 'LoggingGroup'
+$clusterName = 'LoggingCluster'
+$acrName = 'LoggingRegistry'
 
 # Login to Azure
 az login
