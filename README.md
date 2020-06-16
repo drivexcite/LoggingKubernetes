@@ -159,3 +159,152 @@ env:
             key: password
 ```
 
+## Serilog
+Serilog is the de facto standard for structured logging for .NET. It is responsible for propagating messages from the application to a sink. In this example, however, Serilog is only used to sink the log events to the Console (forwarded to stdout when running inside a container), and formatting the events in JSON.
+
+To set up Serilog in the sample project, two dependencies are needed:
+```powershell
+dotnet add package Serilog.AspNetCore
+dotnet add package Serilog.Formatting.Elasticsearch
+```
+
+The first package allows Serilog to be pluged in to the default dependency injection framework in ASP.NET, as follows:
+```csharp
+public static IHostBuilder CreateHostBuilder(string[] args) =>
+    Host.CreateDefaultBuilder(args)
+        .UseSerilog((ctx, config) =>
+        {
+            config
+                .MinimumLevel.Information()
+                .Enrich.FromLogContext();
+
+            if (ctx.HostingEnvironment.IsDevelopment())
+            {
+                config.WriteTo.Console();
+            }
+            else
+            {
+                config.WriteTo.Console(new ElasticsearchJsonFormatter());
+            }
+        })
+        .ConfigureWebHostDefaults(webBuilder =>
+        {
+            webBuilder.UseStartup<Startup>();
+        });
+```
+
+Notice how for development, the logs will simply go to the console as unstructured text, while in production, the logs will go to the console using a JSON structure that is directly indexable into Elastic Search.
+
+In the particular case of ASP.NET, to log inside any of the components registered with the Microsoft Dependency Injection extensions, the only requirement is to inject an instance of `ILogger<T>` where `T` is any class that contains the code.
+
+## Sample application:
+The sample application will just return a set of predefined response codes, and more importantly, log a chunk of diagnostic information:
+```csharp
+[HttpGet]
+[Route("doIt")]
+public IActionResult DoIt()
+{
+    var random = Random.Next();
+
+    if (random % 2 == 0)
+    {
+        Log.LogInformation($"Everything seems cool: {random}");
+        return Ok();
+    }
+
+    if (random % 3 == 0)
+    {
+        Log.LogWarning($"Things are starting to look dumb: {random}");
+        return NotFound();
+    }
+
+    if (random % 5 == 0)
+    {
+        Log.LogError($"This is real weird: {random}");
+        return BadRequest();
+    }
+
+    Log.LogError($"This is not at all what I was expecting: {random}");
+    throw new ArgumentException($"{random} is a dumb number");
+}
+```
+
+### Build and run a container locally
+```powershell
+docker build -t server:latest .
+docker run --rm -p 8080:80 --name server server
+```
+
+### Add an Azure Container Registry to deploy the server app.
+```powershell
+$acrName = 'LoggingRegistry'
+
+# Create Azure Container Registry
+az acr create --name $acrName --resource-group $resourceGroup --location westus -sku Basic --identity --admin-enabled true
+
+# Store the ID of the recently created ACR into a variable.
+$acrResourceId = az acr show --name $acrName --resource-group $resourceGroup --query id
+
+# Attach ACR to AKS
+az aks update --name $clusterName --resource-group $resourceGroup --attach-acr $acrResourceId
+
+# Store the server name
+$loggingServer = az acr show --name $acrName --resource-group $resourceGroup --query loginServer
+
+# From the server source code directory, build the image in ACR.
+az acr build --resource-group $resourceGroup --registry $acrName --image server:v1 .
+```
+
+### Deploy the test application in Kubernetes, from ACR.
+Deploy the following definition to deploy the application to the cluster in the default namespace.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: sample-server
+  labels:
+    app: sample-server
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      name: webinterface
+      targetPort: 80
+  selector:
+    app: sample-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: sample-server
+  labels:
+    app: sample-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-server
+  template:
+    metadata:
+      labels:
+        app: sample-server
+    spec:
+      containers:
+        - name: sample-server
+          image: loggingRegistry.azurecr.io/server:v1
+          ports:
+            - containerPort: 80
+              name: webinterface
+---
+```
+
+
+### Other resources:
+    https://blog.insightdatascience.com/anatomy-of-an-elasticsearch-cluster-part-i-7ac9a13b05db
+    https://medium.com/faun/setup-elastic-search-cluster-kibana-fluentd-on-kubernetes-with-x-pack-security-part-1-271e57c2fe19
+    https://medium.com/faun/setup-elastic-search-cluster-kibana-fluentd-on-kubernetes-with-x-pack-security-part-2-593a01b79fbb
+    https://medium.com/faun/setup-elastic-search-cluster-kibana-fluentd-on-kubernetes-with-x-pack-security-part-3-5579343b5113
+    https://andrewlock.net/writing-logs-to-elasticsearch-with-fluentd-using-serilog-in-asp-net-core/

@@ -1,5 +1,6 @@
 $resourceGroup = 'LoggingGroup'
 $clusterName = 'LoggingCluster'
+$acrName = 'LoggingCluster'
 
 # Login to Azure
 az login
@@ -31,3 +32,19 @@ az aks show --resource-group $resourceGroup --name $clusterName --query kubernet
 
 #Launch Kubernetes Dashboard
 az aks browse --resource-group $resourceGroup --name $clusterName
+
+# Create Azure Container Registry
+az acr create --name $acrName --resource-group $resourceGroup --location westus -sku Basic --identity --admin-enabled true
+
+# Store the ID of the recently created ACR into a variable.
+$acrResourceId = az acr show --name $acrName --resource-group $resourceGroup --query id
+
+# Attach ACR to AKS
+az aks update --name $clusterName --resource-group resourceGroup --detach-acr $acrResourceId
+
+# Store the server name
+$loggingServer = az acr show --name $acrName --resource-group $resourceGroup --query loginServer
+
+# From the server source code directory, build the image in ACR.
+az acr build --resource-group $resourceGroup --registry $acrName --image server:v1 .
+
