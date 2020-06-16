@@ -18,7 +18,11 @@ namespace FlashyService
                     config
                         .MinimumLevel.Information()
                         .Enrich
-                        .FromLogContext();
+                        .FromLogContext()
+                        .Enrich
+                        .WithMachineName()
+                        .Enrich
+                        .WithProperty("ApplicationName", "Sample Server");
 
                     config.WriteTo.Console();
                 })
